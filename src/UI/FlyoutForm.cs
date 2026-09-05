@@ -31,11 +31,14 @@ namespace DdcCi.BrightnessTray.UI
         private readonly LinkLabel _exitLink;
         private readonly Font _boldFont;
         private readonly List<RowBinding> _rows = new List<RowBinding>();
+        private readonly List<Label> _swatches = new List<Label>();
+        private readonly Label _customSwatch;
         private int _contentHeight;
 
         public event EventHandler<SliderChangedEventArgs> SliderChanged;
         public event EventHandler ExitRequested;
         public event EventHandler StartupToggleRequested;
+        public event EventHandler<Color> AccentChanged;
 
         private sealed class RowBinding
         {
@@ -74,6 +77,23 @@ namespace DdcCi.BrightnessTray.UI
 
             Controls.Add(_startupLink);
             Controls.Add(_exitLink);
+
+            foreach (Color preset in Theme.Presets)
+            {
+                Color captured = preset;
+                Label swatch = CreateSwatch(captured, string.Empty);
+                swatch.Click += delegate
+                {
+                    EventHandler<Color> handler = AccentChanged;
+                    if (handler != null) handler(this, captured);
+                };
+                _swatches.Add(swatch);
+                Controls.Add(swatch);
+            }
+
+            _customSwatch = CreateSwatch(Color.White, "+");
+            _customSwatch.Click += delegate { PickCustomColor(); };
+            Controls.Add(_customSwatch);
         }
 
         protected override CreateParams CreateParams
@@ -198,6 +218,17 @@ namespace DdcCi.BrightnessTray.UI
             LayoutFooter();
         }
 
+        public void SetAccent(Color accent)
+        {
+            _startupLink.LinkColor = Theme.Darken(accent, 0.68f);
+            _startupLink.ActiveLinkColor = Theme.Darken(accent, 0.5f);
+            _exitLink.LinkColor = Theme.Darken(accent, 0.68f);
+            _exitLink.ActiveLinkColor = Theme.Darken(accent, 0.5f);
+            RefreshSwatchSelection(accent);
+            foreach (RowBinding row in _rows) row.Slider.Invalidate();
+            Invalidate();
+        }
+
         public void PositionNearCursor()
         {
             Rectangle workingArea = Screen.GetWorkingArea(Cursor.Position);
@@ -272,6 +303,54 @@ namespace DdcCi.BrightnessTray.UI
                 ClientSize.Width - Pad - exitW - 10 - startupW, footerY);
             _exitLink.Location = new Point(
                 ClientSize.Width - Pad - exitW, footerY);
+
+            int sx = Pad;
+            foreach (Label swatch in _swatches)
+            {
+                swatch.Location = new Point(sx, footerY + 1);
+                sx += swatch.Width + 5;
+            }
+            _customSwatch.Location = new Point(sx, footerY + 1);
+        }
+
+        private void RefreshSwatchSelection(Color accent)
+        {
+            bool isPreset = false;
+            foreach (Label swatch in _swatches)
+            {
+                bool selected = swatch.BackColor.ToArgb() == accent.ToArgb();
+                swatch.BorderStyle = selected ? BorderStyle.FixedSingle : BorderStyle.None;
+                if (selected) isPreset = true;
+            }
+            if (!isPreset) _customSwatch.BackColor = accent;
+            _customSwatch.BorderStyle = isPreset ? BorderStyle.None : BorderStyle.FixedSingle;
+        }
+
+        private void PickCustomColor()
+        {
+            using (ColorDialog dialog = new ColorDialog())
+            {
+                dialog.Color = Theme.Accent;
+                dialog.FullOpen = true;
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                EventHandler<Color> handler = AccentChanged;
+                if (handler != null) handler(this, dialog.Color);
+            }
+        }
+
+        private static Label CreateSwatch(Color color, string text)
+        {
+            return new Label
+            {
+                AutoSize = false,
+                Size = new Size(16, 16),
+                BackColor = color,
+                BorderStyle = BorderStyle.None,
+                Text = text,
+                TextAlign = ContentAlignment.MiddleCenter,
+                ForeColor = Color.FromArgb(60, 60, 66),
+                Cursor = Cursors.Hand
+            };
         }
 
         private static LinkLabel CreateLink(string text, int width)

@@ -21,10 +21,7 @@ namespace DdcCi.BrightnessTray.UI
 
                 Color rim = enabled ? Color.FromArgb(45, 45, 48) : Color.FromArgb(152, 152, 158);
                 Color core = enabled
-                    ? Color.FromArgb(
-                        105 + (int)(150 * intensity),
-                        105 + (int)(100 * intensity),
-                        110 - (int)(50 * intensity))
+                    ? Theme.IconCore(Theme.Accent, intensity)
                     : Color.FromArgb(172, 172, 178);
 
                 DrawSun(g, rim, core, intensity);

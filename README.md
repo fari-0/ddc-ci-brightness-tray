@@ -9,6 +9,7 @@ A tiny Windows tray utility that controls the brightness of external monitors ov
 - Drag, click anywhere on the track, or use the **mouse wheel** (1 notch = ±1%)
 - **Left-click** toggles the app between active and paused (paused = no DDC/CI commands are sent, icon turns gray)
 - Footer of the flyout: *"Run at startup"* toggle (run at Windows startup) and *Exit*
+- Footer-left theme swatches: pick an accent color (or any custom color), remembered across restarts
 - Monitors are re-scanned automatically on hot-plug / display changes
 - Brightness commands are debounced (~120 ms) and dispatched in the background so the UI never blocks
 

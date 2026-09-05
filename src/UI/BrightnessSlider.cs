@@ -11,7 +11,6 @@ namespace DdcCi.BrightnessTray.UI
         private const int ThumbDiameter = 16;
         private const int HorizontalPad = 14;
 
-        private static readonly Color AmberFill = Color.FromArgb(255, 179, 0);
         private static readonly Color TrackRest = Color.FromArgb(122, 122, 130);
         private static readonly Color DisabledFill = Color.FromArgb(178, 178, 182);
         private static readonly Color DisabledTrack = Color.FromArgb(206, 206, 211);
@@ -64,7 +63,7 @@ namespace DdcCi.BrightnessTray.UI
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
             bool active = Enabled && Maximum > 0;
-            Color fillColor = active ? AmberFill : DisabledFill;
+            Color fillColor = active ? Theme.Accent : DisabledFill;
             Color restColor = active ? TrackRest : DisabledTrack;
 
             float cy = Height / 2f;

@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Security;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using DdcCi.BrightnessTray.Core;
 using DdcCi.BrightnessTray.UI;
+using Microsoft.Win32;
 
 namespace DdcCi.BrightnessTray.App
 {
@@ -19,6 +23,9 @@ namespace DdcCi.BrightnessTray.App
         private int _lastKnownPercent = -1;
         private bool _cleanedUp;
         private int _rescanGeneration;
+
+        private const string ThemeKeyPath = @"Software\DdcCiBrightnessTray";
+        private const string AccentValueName = "Accent";
 
         public TrayAppController(BrightnessService service)
         {
@@ -36,6 +43,9 @@ namespace DdcCi.BrightnessTray.App
                 StartupManager.Toggle();
                 _flyout.SetStartupState(StartupManager.IsEnabled());
             };
+            _flyout.AccentChanged += OnAccentChanged;
+            Theme.Accent = LoadAccent();
+            _flyout.SetAccent(Theme.Accent);
 
             _displayChangedHandler = delegate { RefreshMonitors(); };
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += _displayChangedHandler;
@@ -76,6 +86,46 @@ namespace DdcCi.BrightnessTray.App
 
             _lastKnownPercent = ScalePercent(e.Monitor, e.Value);
             UpdateTrayVisual();
+        }
+
+        private void OnAccentChanged(object sender, Color color)
+        {
+            Theme.Accent = color;
+            SaveAccent(color);
+            _flyout.SetAccent(color);
+            UpdateTrayVisual();
+        }
+
+        private static Color LoadAccent()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(ThemeKeyPath))
+                {
+                    if (key == null) return Theme.DefaultAccent;
+                    object raw = key.GetValue(AccentValueName);
+                    if (raw is int) return Color.FromArgb((int)raw);
+                    return Theme.DefaultAccent;
+                }
+            }
+            catch (SecurityException) { return Theme.DefaultAccent; }
+            catch (UnauthorizedAccessException) { return Theme.DefaultAccent; }
+            catch (IOException) { return Theme.DefaultAccent; }
+        }
+
+        private static void SaveAccent(Color color)
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(ThemeKeyPath))
+                {
+                    if (key == null) return;
+                    key.SetValue(AccentValueName, color.ToArgb(), RegistryValueKind.DWord);
+                }
+            }
+            catch (SecurityException) { }
+            catch (UnauthorizedAccessException) { }
+            catch (IOException) { }
         }
 
         private void RefreshMonitors()
