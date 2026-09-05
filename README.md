@@ -46,6 +46,7 @@ This compiles `bin\BrightnessTray.exe` using the C# compiler that ships with Win
 
 ```
 src/
+├── AssemblyInfo.cs                 # Version stamp (1.0.0.0)
 ├── Infrastructure/NativeMethods.cs   # All Win32 P/Invoke declarations
 ├── Core/
 │   ├── IMonitorBrightness.cs         # Abstraction over one display's brightness
