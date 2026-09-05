@@ -6,7 +6,7 @@ $cscCandidates = @(
     (Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe')
 )
 $csc = $cscCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $csc) { throw "csc.exe bulunamadi (.NET Framework 4.x gerekli)" }
+if (-not $csc) { throw "csc.exe not found (.NET Framework 4.x required)" }
 
 $srcDir = Join-Path $root 'src'
 $outDir = Join-Path $root 'bin'
@@ -14,7 +14,7 @@ $outExe = Join-Path $outDir 'BrightnessTray.exe'
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
 $csSources = @(Get-ChildItem -LiteralPath $srcDir -Recurse -Filter *.cs | ForEach-Object { $_.FullName })
-if ($csSources.Count -eq 0) { throw "Kaynak dosya bulunamadi: $srcDir" }
+if ($csSources.Count -eq 0) { throw "Source files not found: $srcDir" }
 
 $cscArgs = @(
     '/nologo',
@@ -31,6 +31,6 @@ $cscArgs = @(
 ) + $csSources
 
 & $csc @cscArgs
-if ($LASTEXITCODE -ne 0) { throw "Derleme basarisiz (exit code: $LASTEXITCODE)" }
+if ($LASTEXITCODE -ne 0) { throw "Build failed (exit code: $LASTEXITCODE)" }
 
 Write-Host "OK -> $outExe"

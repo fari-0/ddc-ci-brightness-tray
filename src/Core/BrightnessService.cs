@@ -73,7 +73,7 @@ namespace DdcCi.BrightnessTray.Core
 
         public void RequestSet(IMonitorBrightness monitor, uint value)
         {
-            CancellationTokenSource cts = new CancellationTokenSource();
+            CancellationTokenSource cts;
             lock (_gate)
             {
                 if (!_enabled)
@@ -82,18 +82,18 @@ namespace DdcCi.BrightnessTray.Core
                 }
                 CancellationTokenSource previous;
                 if (_pendingSets.TryGetValue(monitor, out previous)) previous.Cancel();
+                cts = new CancellationTokenSource();
                 _pendingSets[monitor] = cts;
             }
 
             CancellationToken token = cts.Token;
-            Task.Run(delegate
+            Task.Delay(DebounceMs, token).ContinueWith(delegate(Task t)
             {
                 try
                 {
-                    Task.Delay(DebounceMs, token).Wait(token);
+                    if (t.IsCanceled || token.IsCancellationRequested) return;
                     monitor.TrySetBrightness(value);
                 }
-                catch (OperationCanceledException) { }
                 finally
                 {
                     lock (_gate)
@@ -102,8 +102,9 @@ namespace DdcCi.BrightnessTray.Core
                         if (_pendingSets.TryGetValue(monitor, out current) && ReferenceEquals(current, cts))
                             _pendingSets.Remove(monitor);
                     }
+                    cts.Dispose();
                 }
-            });
+            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
 
         public void Dispose()

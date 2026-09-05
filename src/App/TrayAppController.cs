@@ -18,6 +18,7 @@ namespace DdcCi.BrightnessTray.App
         private bool _enabled = true;
         private int _lastKnownPercent = -1;
         private bool _cleanedUp;
+        private int _rescanGeneration;
 
         public TrayAppController(BrightnessService service)
         {
@@ -56,7 +57,7 @@ namespace DdcCi.BrightnessTray.App
             RefreshMonitors();
             if (_service.Snapshot().Count == 0)
             {
-                _tray.ShowBalloon("Brightness Tray", "DDC/CI destekleyen harici monitör bulunamadı.", ToolTipIcon.Warning);
+                _tray.ShowBalloon("Brightness Tray", "No external monitor supporting DDC/CI was found.", ToolTipIcon.Warning);
                 return;
             }
 
@@ -89,28 +90,36 @@ namespace DdcCi.BrightnessTray.App
             List<MonitorDescriptor> descriptors = monitors.Select(m => m.Descriptor).ToList();
             _flyout.Bind(descriptors);
 
-            foreach (IMonitorBrightness monitor in monitors)
+            int generation = System.Threading.Interlocked.Increment(ref _rescanGeneration);
+            List<IMonitorBrightness> copy = new List<IMonitorBrightness>(monitors);
+            Task.Factory.StartNew(delegate
             {
-                IMonitorBrightness captured = monitor;
-                Task.Factory.StartNew(delegate
+                foreach (IMonitorBrightness m in copy)
                 {
+                    if (generation != _rescanGeneration) return;
+                    IMonitorBrightness captured = m;
                     uint value;
-                    if (!_service.TryRead(captured, out value)) return;
+                    if (!_service.TryRead(captured, out value)) continue;
+                    if (generation != _rescanGeneration) return;
+                    uint v = value;
                     RunOnUi(delegate
                     {
-                        _flyout.UpdateValue(captured.Descriptor, value);
-                        _lastKnownPercent = ScalePercent(captured.Descriptor, (int)value);
+                        if (generation != _rescanGeneration) return;
+                        _flyout.UpdateValue(captured.Descriptor, v);
+                        _lastKnownPercent = ScalePercent(captured.Descriptor, (int)v);
                         UpdateTrayVisual();
                     });
-                });
-            }
+                }
+            });
         }
 
         private IMonitorBrightness FindMonitor(MonitorDescriptor descriptor)
         {
+            if (descriptor == null) return null;
             foreach (IMonitorBrightness m in _service.Snapshot())
             {
-                if (ReferenceEquals(m.Descriptor, descriptor)) return m;
+                MonitorDescriptor d = m.Descriptor;
+                if (d != null && d.Name == descriptor.Name && d.Maximum == descriptor.Maximum) return m;
             }
             return null;
         }
@@ -127,18 +136,14 @@ namespace DdcCi.BrightnessTray.App
         {
             int? shown = _lastKnownPercent >= 0 ? (int?)_lastKnownPercent : null;
             string tooltip = _enabled
-                ? (_lastKnownPercent >= 0 ? "Parlaklık: %" + _lastKnownPercent : "Parlaklık")
-                : "Parlaklık (duraklatıldı)";
+                ? (_lastKnownPercent >= 0 ? "Brightness Tray: " + _lastKnownPercent + "%" : "Brightness Tray")
+                : "Brightness Tray (paused)";
             _tray.Show(IconPainter.Paint(shown, _enabled), tooltip);
         }
 
         private static int ScalePercent(MonitorDescriptor descriptor, int rawValue)
         {
-            long max = Math.Max(1, (long)descriptor.Maximum);
-            int pct = (int)(rawValue * 100L / max);
-            if (pct < 0) pct = 0;
-            if (pct > 100) pct = 100;
-            return pct;
+            return MonitorDescriptor.ToPercent(rawValue, descriptor.Maximum);
         }
 
         private void ExitApplication()

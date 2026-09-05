@@ -29,7 +29,9 @@ namespace DdcCi.BrightnessTray.UI
 
         private readonly LinkLabel _startupLink;
         private readonly LinkLabel _exitLink;
+        private readonly Font _boldFont;
         private readonly List<RowBinding> _rows = new List<RowBinding>();
+        private int _contentHeight;
 
         public event EventHandler<SliderChangedEventArgs> SliderChanged;
         public event EventHandler ExitRequested;
@@ -52,17 +54,18 @@ namespace DdcCi.BrightnessTray.UI
             DoubleBuffered = true;
             BackColor = Color.FromArgb(243, 243, 246);
             Font = new Font("Segoe UI", 9F);
+            _boldFont = new Font(Font, FontStyle.Bold);
             AutoScaleMode = AutoScaleMode.Dpi;
             AutoScaleDimensions = new SizeF(96F, 96F);
 
-            _startupLink = CreateLink("Başlangıçta çalıştır: -", 176);
+            _startupLink = CreateLink("Run at startup: -", 176);
             _startupLink.Click += delegate
             {
                 EventHandler handler = StartupToggleRequested;
                 if (handler != null) handler(this, EventArgs.Empty);
             };
 
-            _exitLink = CreateLink("Çıkış", 44);
+            _exitLink = CreateLink("Exit", 44);
             _exitLink.Click += delegate
             {
                 EventHandler handler = ExitRequested;
@@ -115,7 +118,7 @@ namespace DdcCi.BrightnessTray.UI
                     TextAlign = ContentAlignment.MiddleLeft,
                     ForeColor = Color.FromArgb(30, 30, 34)
                 };
-                row.NameLabel.Font = new Font(Font, FontStyle.Bold);
+                row.NameLabel.Font = _boldFont;
 
                 row.PercentLabel = new Label
                 {
@@ -150,14 +153,19 @@ namespace DdcCi.BrightnessTray.UI
                 y += NameHeight - 4 + SliderHeight + RowGap;
             }
 
-            ClientSize = new Size(PanelWidth, y + FooterHeight + 4);
+            _contentHeight = y + FooterHeight + 4;
 
-            _startupLink.Location = new Point(
-                ClientSize.Width - Pad - _exitLink.Width - 10 - _startupLink.Width,
-                ClientSize.Height - FooterHeight + (FooterHeight - _startupLink.Height) / 2);
-            _exitLink.Location = new Point(
-                ClientSize.Width - Pad - _exitLink.Width,
-                ClientSize.Height - FooterHeight + (FooterHeight - _exitLink.Height) / 2);
+            int availH = Screen.GetWorkingArea(Cursor.Position).Height - 16;
+            if (availH < 120) availH = 120;
+            int viewportH = Math.Min(_contentHeight, availH);
+            ClientSize = new Size(PanelWidth, viewportH);
+            AutoScroll = _contentHeight > viewportH;
+            if (AutoScroll) AutoScrollPosition = new Point(0, 0);
+
+            int footerY = _contentHeight - FooterHeight + (FooterHeight - _startupLink.Height) / 2;
+            _startupLink.Location = new Point(0, footerY);
+            _exitLink.Location = new Point(0, footerY);
+            LayoutFooter();
 
             ResumeLayout(true);
             Invalidate();
@@ -167,7 +175,9 @@ namespace DdcCi.BrightnessTray.UI
         {
             foreach (RowBinding row in _rows)
             {
-                if (!ReferenceEquals(row.Descriptor, descriptor)) continue;
+                if (descriptor == null) return;
+                MonitorDescriptor d = row.Descriptor;
+                if (d == null || d.Name != descriptor.Name || d.Maximum != descriptor.Maximum) continue;
                 BrightnessSlider slider = row.Slider;
                 int clamped = Math.Min(slider.Maximum, (int)Math.Max(0, rawValue));
                 slider.Value = clamped;
@@ -184,7 +194,8 @@ namespace DdcCi.BrightnessTray.UI
 
         public void SetStartupState(bool enabled)
         {
-            _startupLink.Text = enabled ? "Başlangıçta çalıştır: Açık" : "Başlangıçta çalıştır: Kapalı";
+            _startupLink.Text = enabled ? "Run at startup: On" : "Run at startup: Off";
+            LayoutFooter();
         }
 
         public void PositionNearCursor()
@@ -196,8 +207,16 @@ namespace DdcCi.BrightnessTray.UI
 
             int y = Cursor.Position.Y - Height - 12;
             if (y < workingArea.Top) y = Cursor.Position.Y + 12;
+            if (y + Height > workingArea.Bottom - 4) y = workingArea.Bottom - Height - 4;
+            if (y < workingArea.Top) y = workingArea.Top + 4;
 
             Location = new Point(x, y);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _boldFont != null) _boldFont.Dispose();
+            base.Dispose(disposing);
         }
 
         protected override void OnDeactivate(EventArgs e)
@@ -231,9 +250,28 @@ namespace DdcCi.BrightnessTray.UI
 
         private static void UpdatePercentText(RowBinding row)
         {
-            int max = Math.Max(1, row.Slider.Maximum);
-            int pct = row.Slider.Value * 100 / max;
-            row.PercentLabel.Text = pct + "%";
+            row.PercentLabel.Text = MonitorDescriptor.ToPercent(row.Slider.Value, row.Slider.Maximum) + "%";
+        }
+
+        private void LayoutFooter()
+        {
+            Size startupPref = TextRenderer.MeasureText(_startupLink.Text, _startupLink.Font);
+            Size exitPref = TextRenderer.MeasureText(_exitLink.Text, _exitLink.Font);
+            int exitW = exitPref.Width + 8;
+            if (exitW < 30) exitW = 30;
+            if (exitW > 80) exitW = 80;
+            int startupW = startupPref.Width + 8;
+            if (startupW < 60) startupW = 60;
+            int maxStartup = ClientSize.Width - Pad * 2 - exitW - 10;
+            if (maxStartup < 60) maxStartup = 60;
+            if (startupW > maxStartup) startupW = maxStartup;
+            _startupLink.Width = startupW;
+            _exitLink.Width = exitW;
+            int footerY = _startupLink.Location.Y;
+            _startupLink.Location = new Point(
+                ClientSize.Width - Pad - exitW - 10 - startupW, footerY);
+            _exitLink.Location = new Point(
+                ClientSize.Width - Pad - exitW, footerY);
         }
 
         private static LinkLabel CreateLink(string text, int width)

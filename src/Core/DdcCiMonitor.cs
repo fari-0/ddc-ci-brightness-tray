@@ -47,7 +47,7 @@ namespace DdcCi.BrightnessTray.Core
                 if (_handle == IntPtr.Zero) return;
                 NativeMethods.PHYSICAL_MONITOR[] arr = new NativeMethods.PHYSICAL_MONITOR[1];
                 arr[0].Handle = _handle;
-                arr[0].Description = Descriptor.Name;
+                arr[0].Description = null;
                 NativeMethods.DestroyPhysicalMonitors(1, arr);
                 _handle = IntPtr.Zero;
             }

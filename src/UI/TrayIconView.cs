@@ -16,14 +16,16 @@ namespace DdcCi.BrightnessTray.UI
             _icon = new NotifyIcon
             {
                 Visible = true,
-                Text = "Brightness"
+                Text = "Brightness Tray"
             };
             _icon.MouseClick += OnMouseClick;
         }
 
         public void Show(Icon icon, string tooltip)
         {
+            Icon old = _icon.Icon;
             _icon.Icon = icon;
+            if (old != null) old.Dispose();
             _icon.Text = tooltip != null && tooltip.Length > 63 ? tooltip.Substring(0, 63) : tooltip ?? string.Empty;
         }
 
@@ -49,6 +51,9 @@ namespace DdcCi.BrightnessTray.UI
         public void Dispose()
         {
             _icon.Visible = false;
+            Icon owned = _icon.Icon;
+            _icon.Icon = null;
+            if (owned != null) owned.Dispose();
             _icon.Dispose();
         }
     }

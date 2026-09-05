@@ -19,10 +19,22 @@ namespace DdcCi.BrightnessTray.UI
 
         private bool _dragging;
         private int _value;
+        private int _maximum = 100;
 
         public event EventHandler<int> ValueChanged;
 
-        public int Maximum { get; set; }
+        public int Maximum
+        {
+            get { return _maximum; }
+            set
+            {
+                if (value < 0) value = 0;
+                if (value == _maximum) return;
+                _maximum = value;
+                SetCore(Clamp(_value), false);
+                Invalidate();
+            }
+        }
         public int SmallStep { get; set; }
 
         public int Value
@@ -37,7 +49,8 @@ namespace DdcCi.BrightnessTray.UI
                 ControlStyles.AllPaintingInWmPaint |
                 ControlStyles.OptimizedDoubleBuffer |
                 ControlStyles.UserPaint |
-                ControlStyles.ResizeRedraw, true);
+                ControlStyles.ResizeRedraw |
+                ControlStyles.Selectable, true);
             Maximum = 100;
             SmallStep = 1;
             Cursor = Cursors.Hand;
@@ -69,11 +82,14 @@ namespace DdcCi.BrightnessTray.UI
             {
                 float ratio = (float)_value / Maximum;
                 float fillWidth = Math.Max(track.Width * ratio, track.Height);
-                g.SetClip(new RectangleF(track.X, track.Y - 4, fillWidth, track.Height + 8));
-                using (GraphicsPath path = Rounded(track, TrackThickness / 2f))
-                using (SolidBrush fillBrush = new SolidBrush(fillColor))
-                    g.FillPath(fillBrush, path);
-                g.ResetClip();
+                using (Region clip = new Region(new RectangleF(track.X, track.Y - 4, fillWidth, track.Height + 8)))
+                {
+                    g.Clip = clip;
+                    using (GraphicsPath path = Rounded(track, TrackThickness / 2f))
+                    using (SolidBrush fillBrush = new SolidBrush(fillColor))
+                        g.FillPath(fillBrush, path);
+                    g.ResetClip();
+                }
             }
 
             if (Maximum > 0)
@@ -123,13 +139,44 @@ namespace DdcCi.BrightnessTray.UI
             HandledMouseEventArgs handled = e as HandledMouseEventArgs;
             if (handled != null) handled.Handled = true;
 
-            SetCore(Clamp(Value + Math.Sign(e.Delta) * SmallStep), true);
+            int step = Math.Max(1, Maximum / 100);
+            SetCore(Clamp(Value + Math.Sign(e.Delta) * step), true);
         }
 
         protected override void OnEnabledChanged(EventArgs e)
         {
             base.OnEnabledChanged(e);
             Invalidate();
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            base.OnMouseEnter(e);
+            if (Enabled) Focus();
+        }
+
+        protected override bool IsInputKey(Keys keyData)
+        {
+            Keys code = keyData & Keys.KeyCode;
+            if (code == Keys.Left || code == Keys.Right || code == Keys.Up || code == Keys.Down) return true;
+            return base.IsInputKey(keyData);
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (!Enabled || Maximum <= 0) return;
+            int step = Math.Max(1, Maximum / 100);
+            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Down)
+            {
+                SetCore(Clamp(Value - step), true);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Up)
+            {
+                SetCore(Clamp(Value + step), true);
+                e.Handled = true;
+            }
         }
 
         private void ApplyMouse(int mouseX)

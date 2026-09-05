@@ -2,15 +2,13 @@
 
 A tiny Windows tray utility that controls the brightness of external monitors over **DDC/CI** — no installation, no dependencies, single ~100 KB executable.
 
-![screenshot-placeholder](docs/screenshot.png)
-
 ## Features
 
 - Lives in the system tray with a dynamic icon showing current brightness
 - **Right-click** the tray icon to open a flyout panel with a smooth, Windows 11–style slider (amber accent)
 - Drag, click anywhere on the track, or use the **mouse wheel** (1 notch = ±1%)
 - **Left-click** toggles the app between active and paused (paused = no DDC/CI commands are sent, icon turns gray)
-- Footer of the flyout: *"Başlangıçta çalıştır"* toggle (run at Windows startup) and *Çıkış* (exit)
+- Footer of the flyout: *"Run at startup"* toggle (run at Windows startup) and *Exit*
 - Monitors are re-scanned automatically on hot-plug / display changes
 - Brightness commands are debounced (~120 ms) and dispatched in the background so the UI never blocks
 
@@ -43,8 +41,6 @@ This compiles `bin\BrightnessTray.exe` using the C# compiler that ships with Win
 | Slider drag / track click | Set brightness |
 | Mouse wheel over slider | ±1% per notch |
 | Esc or click outside | Close flyout |
-
-> Note: UI text is in Turkish. English strings may be added later.
 
 ## Project structure
 

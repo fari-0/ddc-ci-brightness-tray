@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using DdcCi.BrightnessTray.Infrastructure;
 
 namespace DdcCi.BrightnessTray.UI
 {
@@ -27,7 +28,16 @@ namespace DdcCi.BrightnessTray.UI
                     : Color.FromArgb(172, 172, 178);
 
                 DrawSun(g, rim, core, intensity);
-                return Icon.FromHandle(bmp.GetHicon());
+                IntPtr hIcon = bmp.GetHicon();
+                try
+                {
+                    using (Icon tmp = Icon.FromHandle(hIcon))
+                        return (Icon)tmp.Clone();
+                }
+                finally
+                {
+                    NativeMethods.DestroyIcon(hIcon);
+                }
             }
         }
 

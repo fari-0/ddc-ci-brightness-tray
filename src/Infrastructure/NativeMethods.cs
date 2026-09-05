@@ -30,6 +30,9 @@ namespace DdcCi.BrightnessTray.Infrastructure
         [DllImport("user32.dll")]
         public static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clipRect, MonitorEnumProc callback, IntPtr data);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool DestroyIcon(IntPtr hIcon);
+
         [DllImport("dxva2.dll", SetLastError = true)]
         public static extern bool GetNumberOfPhysicalMonitorsFromHMONITOR(IntPtr hMonitor, ref uint count);
 
